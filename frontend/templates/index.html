@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NationalAI 견적 에이전트</title>
+    <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f2f5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        h2 {
+            text-align: center;
+            color: #1a1a1a;
+            margin-bottom: 16px;
+        }
+        .panel-tabs {
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto 12px auto;
+            display: flex;
+            gap: 8px;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 10px 12px;
+            border-radius: 999px;
+            border: 1px solid #d0d7de;
+            background: #f6f8fa;
+            color: #24292f;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
+        }
+        .tab-btn:hover {
+            background: #e6f0ff;
+            border-color: #0969da;
+        }
+        .tab-btn.active {
+            background: #0969da;
+            border-color: #0969da;
+            color: #ffffff;
+            box-shadow: 0 2px 6px rgba(9,105,218,0.35);
+        }
+        .main-layout {
+            flex: 1;
+            display: flex;
+            gap: 20px;
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+            min-height: 0;
+        }
+        .input-attach-section {
+            flex: 1;
+            min-width: 0;
+            display: none;
+            flex-direction: column;
+            min-height: 0;
+        }
+        .input-attach-panel {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+            border: 1px solid #e1e4e8;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            padding: 18px 20px;
+            overflow: hidden;
+        }
+        .input-attach-panel .panel-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e1e4e8;
+        }
+        .input-attach-row {
+            flex-shrink: 0;
+            margin-bottom: 12px;
+        }
+        .input-attach-row .input-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 6px;
+        }
+        .input-attach-field {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            transition: border 0.2s;
+        }
+        .input-attach-field:focus {
+            border-color: #007bff;
+        }
+        .input-attach-file-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+        }
+        .input-attach-file-row .input-label { margin-bottom: 0; }
+        .input-attach-file {
+            padding: 6px 0;
+            font-size: 13px;
+        }
+        .input-attach-file-row .hint {
+            font-size: 12px;
+            color: #888;
+            margin: 0;
+        }
+        .input-attach-panel .input-attach-preview {
+            flex: 1;
+            min-height: 200px;
+            margin-top: 4px;
+        }
+        .chat-section {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+        .right-section {
+            width: 520px;
+            flex: 0 0 520px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-height: 0;
+        }
+        .file-preview {
+            width: 100%;
+            flex: 1 1 0;
+            background: #ffffff;
+            border: 1px solid #e1e4e8;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            overflow: hidden;
+        }
+        .file-preview-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 6px;
+        }
+        .file-preview-body {
+            flex: 1;
+            min-height: 0;
+            overflow: auto;
+            font-size: 12px;
+            color: #777;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 4px;
+        }
+        .file-preview-body img,
+        .file-preview-body embed {
+            width: 100%;
+            height: 100%;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            border-radius: 6px;
+        }
+        #chat-window {
+            background: #f8f9fa;
+            flex: 1;
+            min-height: 0;
+            max-height: calc(100vh - 140px);
+            overflow-y: auto;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border: 1px solid #e1e4e8;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .estimate-panel {
+            width: 520px;
+            height: auto;
+            flex: 1 1 0;
+            align-self: stretch;
+            max-height: none;
+            background: #fff;
+            border: 1px solid #e1e4e8;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .estimate-panel .panel-title {
+            padding: 14px 18px;
+            font-weight: 700;
+            font-size: 15px;
+            color: #1a1a1a;
+            background: #f0f7ff;
+            border-bottom: 1px solid #e1e4e8;
+            flex-shrink: 0;
+        }
+        .estimate-panel .panel-body {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 18px;
+            white-space: pre-wrap;
+            font-size: 14px;
+            line-height: 1.65;
+            color: #333;
+            word-break: break-word;
+        }
+        .estimate-panel .panel-body.empty {
+            white-space: pre-wrap;
+            color: #999;
+            font-style: italic;
+        }
+        .estimate-panel .panel-body.empty {
+            color: #999;
+            font-style: italic;
+        }
+        .estimate-panel .panel-body:not(.empty) {
+            white-space: normal;
+        }
+        .estimate-panel .panel-body h1 { font-size: 1.25em; margin: 1em 0 0.5em; font-weight: 700; color: #1a1a1a; }
+        .estimate-panel .panel-body h2 { font-size: 1.15em; margin: 0.9em 0 0.45em; font-weight: 700; color: #252525; border-bottom: 1px solid #e0e0e0; padding-bottom: 4px; }
+        .estimate-panel .panel-body h3 { font-size: 1.05em; margin: 0.8em 0 0.4em; font-weight: 600; color: #333; }
+        .estimate-panel .panel-body table {
+            width: 100%; border-collapse: collapse; margin: 0.6em 0; font-size: 13px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06); border-radius: 8px; overflow: hidden;
+        }
+        .estimate-panel .panel-body thead { background: #e3f2fd; }
+        .estimate-panel .panel-body th, .estimate-panel .panel-body td {
+            border: 1px solid #e0e0e0; padding: 8px 12px; text-align: left; vertical-align: top;
+        }
+        .estimate-panel .panel-body th { background: #e3f2fd; font-weight: 600; color: #0d47a1; }
+        .estimate-panel .panel-body tbody tr:nth-child(even) { background: #fafafa; }
+        .estimate-panel .panel-body tbody tr:hover { background: #f5f5f5; }
+        .estimate-panel .panel-body pre {
+            background: #1e1e1e; color: #d4d4d4; border: 1px solid #333; border-radius: 8px;
+            padding: 14px; overflow-x: auto; font-size: 12px; line-height: 1.5;
+            white-space: pre; margin: 0.6em 0;
+        }
+        .estimate-panel .panel-body code { font-family: 'Consolas', 'Monaco', ui-monospace, monospace; background: #f0f0f0; color: #c41a16; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+        .estimate-panel .panel-body pre code { background: none; color: inherit; padding: 0; }
+        .estimate-panel .panel-body ul, .estimate-panel .panel-body ol { margin: 0.5em 0; padding-left: 1.5em; }
+        .estimate-panel .panel-body li { margin: 0.25em 0; }
+        .estimate-panel .panel-body hr { border: none; border-top: 1px solid #e0e0e0; margin: 1em 0; }
+        .estimate-panel .panel-body p { margin: 0.5em 0; }
+        .estimate-panel .panel-body blockquote { border-left: 4px solid #2196f3; margin: 0.5em 0; padding-left: 12px; color: #555; background: #f8f9fa; padding: 8px 12px; border-radius: 0 6px 6px 0; }
+        .estimate-panel .panel-body strong { font-weight: 600; color: #1a1a1a; }
+        .msg {
+            max-width: 78%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            line-height: 1.6;
+            font-size: 15px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .msg .role-label {
+            font-size: 11px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            opacity: 0.9;
+        }
+        .msg.expert {
+            align-self: flex-start;
+            background: #e3f2fd;
+            border: 1px solid #90caf9;
+            color: #1565c0;
+        }
+        .msg.expert .role-label { color: #0d47a1; }
+        .msg.ceo {
+            align-self: flex-end;
+            background: #fff3e0;
+            border: 1px solid #ffb74d;
+            color: #e65100;
+        }
+        .msg.ceo .role-label { color: #bf360c; }
+        .msg .content { margin: 0; }
+        .controls {
+            display: none; /* 글로벌 폼 버튼은 숨기고, 대화 패널 안 버튼만 사용 */
+        }
+        input[type="text"] {
+            flex: 1;
+            min-width: 250px;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            outline: none;
+            transition: border 0.3s;
+        }
+        input[type="text"]:focus {
+            border-color: #007bff;
+        }
+        input[type="file"] {
+            padding: 10px 0;
+        }
+        button {
+            padding: 12px 25px;
+            background: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .btn-pause {
+            background: #dc3545;
+        }
+        .btn-pause:hover:not(:disabled) {
+            background: #c82333;
+        }
+        .status-msg {
+            font-size: 13px;
+            color: #666;
+            margin-top: 10px;
+            text-align: right;
+        }
+        .hint { font-size: 12px; color: #888; margin-top: 4px; }
+        .placeholder-msg { color: #666; font-size: 15px; padding: 12px 0; }
+        .btn-secondary { background: #6c757d; }
+        .btn-secondary:hover { background: #5a6268; }
+        .step-actions {
+            margin-top: 10px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+        .btn-step-next {
+            padding: 8px 16px;
+            font-size: 13px;
+            border-radius: 999px;
+            background: #0d6efd;
+            border: none;
+            color: #fff;
+            cursor: pointer;
+        }
+        .btn-step-next:hover {
+            background: #0b5ed7;
+        }
+        .chat-actions {
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 8px;
+        }
+        .time-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+        }
+        .time-minutes-input {
+            width: 4rem;
+            padding: 6px 8px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .chat-actions .router-reason {
+            margin-left: auto;
+            font-size: 12px;
+            color: #999;
+            max-width: 260px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .status-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 6px;
+        }
+        .status-row .status-msg { flex: 0 0 auto; }
+        .elapsed-time {
+            font-variant-numeric: tabular-nums;
+            font-weight: 600;
+            color: #0969da;
+        }
+
+        /* 프롬프트 편집 탭 패널 (대화·견적서와 동일 크기) */
+        .prompt-edit-section {
+            flex: 1;
+            min-width: 0;
+            display: none;
+            flex-direction: column;
+            min-height: 0;
+        }
+        .prompt-edit-section .prompt-edit-panel {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+            border: 1px solid #e1e4e8;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            padding: 18px 20px;
+            overflow: hidden;
+        }
+        .prompt-edit-section .panel-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 8px;
+        }
+        .prompt-edit-section .hint {
+            margin-bottom: 12px;
+        }
+        .prompt-edit-section textarea {
+            flex: 1;
+            min-height: 120px;
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1.5;
+            resize: vertical;
+        }
+        .prompt-edit-section textarea:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        .prompt-edit-tabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 12px;
+            flex-shrink: 0;
+        }
+        .prompt-edit-tab {
+            padding: 8px 14px;
+            border-radius: 8px;
+            border: 1px solid #d0d7de;
+            background: #f6f8fa;
+            color: #24292f;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s, color 0.2s;
+        }
+        .prompt-edit-tab:hover {
+            background: #e6f0ff;
+            border-color: #0969da;
+        }
+        .prompt-edit-tab.active {
+            background: #0969da;
+            border-color: #0969da;
+            color: #fff;
+        }
+        .prompt-edit-content {
+            display: none;
+            flex: 1;
+            flex-direction: column;
+            min-height: 0;
+        }
+        .prompt-edit-content.active {
+            display: flex;
+        }
+        .prompt-edit-content .hint { margin-bottom: 8px; }
+        .prompt-edit-content textarea { flex: 1; min-height: 100px; }
+        #resetPromptsBtn { margin-top: 12px; flex-shrink: 0; }
+
+        @media (max-width: 1024px) {
+            .main-layout {
+                flex-direction: column;
+                height: auto;
+            }
+            .input-attach-panel .input-attach-preview { min-height: 180px; }
+            .prompt-edit-section .prompt-edit-panel {
+                min-height: 280px;
+            }
+            .file-preview {
+                width: 100%;
+                flex: 0 0 auto;
+                max-height: 220px;
+            }
+            .estimate-panel {
+                width: 100%;
+                flex: 0 0 auto;
+                height: 320px;
+            }
+        }
+    </style>
+    <!-- marked: UMD 빌드만 전역 marked 노출 (루트 스크립트는 ESM 전용이라 미로드 시 견적서 마크다운 미렌더) -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/lib/marked.umd.min.js"></script>
+</head>
+<body>
+
+    <h2>NationalAI 견적 에이전트</h2>
+
+    <div class="panel-tabs">
+        <button type="button" class="tab-btn" data-panel="input" id="inputAttachTab">1. 📝 입력·첨부</button>
+        <button type="button" class="tab-btn" data-panel="prompt" id="promptEditBtn">2. ✏️ 프롬프트 편집</button>
+        <button type="button" class="tab-btn active" data-panel="chat">3. 💬 대화</button>
+        <button type="button" class="tab-btn" data-panel="estimate">4. 📋 정리 및 견적서</button>
+    </div>
+
+    <div class="main-layout">
+        <div class="input-attach-section" id="inputAttachSection">
+            <div class="input-attach-panel">
+                <div class="panel-title">1단계. 📝 요청 입력</div>
+                <div class="input-attach-row">
+                    <label for="promptInput" class="input-label">대화 요구사항 (선택)</label>
+                    <input form="negotiationForm" type="text" id="promptInput" value="소프트웨어 프로덕션 견적을 내줘." placeholder="비워두면 기본 안내 문구로 요청합니다." class="input-attach-field">
+                </div>
+                <div class="input-attach-row input-attach-file-row">
+                    <label for="fileInput" class="input-label">파일 첨부</label>
+                    <input form="negotiationForm" type="file" id="fileInput" accept="image/*,application/pdf" class="input-attach-file">
+                    <span class="hint">이미지 또는 PDF</span>
+                </div>
+                <div class="file-preview input-attach-preview">
+                    <div class="file-preview-title">📎 첨부 파일 미리보기</div>
+                    <div class="file-preview-body" id="filePreview">첨부된 파일이 없거나, 아직 선택하지 않았습니다.</div>
+                </div>
+                <div class="step-actions">
+                    <button type="button" id="inputNextBtn" class="btn-step-next">다음 (2단계 프롬프트 편집)</button>
+                </div>
+            </div>
+        </div>
+        <div class="prompt-edit-section" id="promptEditSection">
+            <div class="prompt-edit-panel">
+                <div class="panel-title">2단계. ✏️ 에이전트 프롬프트 편집</div>
+                <p class="hint">각 전문가 페르소나 지시문을 수정할 수 있습니다. 비워두면 서버 기본값이 사용됩니다.</p>
+                <div class="prompt-edit-tabs">
+                    <button type="button" class="prompt-edit-tab active" data-tab="tech">🔧 기술 전문가</button>
+                    <button type="button" class="prompt-edit-tab" data-tab="business">📊 사업 전문가</button>
+                    <button type="button" class="prompt-edit-tab" data-tab="economy">💰 경제 전문가</button>
+                </div>
+                <div class="prompt-edit-content active" data-tab="tech">
+                    <p class="hint">기술 전문가(CTO/아키텍트) 역할 지시문.</p>
+                    <textarea id="promptTech" placeholder="기술 전문가 시스템 프롬프트"></textarea>
+                </div>
+                <div class="prompt-edit-content" data-tab="business">
+                    <p class="hint">사업 전문가(PM/BA) 역할 지시문.</p>
+                    <textarea id="promptBusiness" placeholder="사업 전문가 시스템 프롬프트"></textarea>
+                </div>
+                <div class="prompt-edit-content" data-tab="economy">
+                    <p class="hint">경제/재무 전문가(CFO) 역할 지시문.</p>
+                    <textarea id="promptEconomy" placeholder="경제 전문가 시스템 프롬프트"></textarea>
+                </div>
+                <button type="button" id="resetPromptsBtn" class="btn btn-secondary">초기화 (서버 기본값 불러오기)</button>
+                <div class="step-actions">
+                    <button type="button" id="promptNextBtn" class="btn-step-next">다음 (3단계 대화)</button>
+                </div>
+            </div>
+        </div>
+        <div class="chat-section" id="chatSection">
+            <div id="chat-window">
+                <div class="placeholder-msg" id="chatPlaceholder">대화를 시작하려면 요구사항을 입력하세요. 이미지는 선택 사항입니다 (텍스트만 또는 텍스트+이미지).</div>
+            </div>
+            <div class="status-row">
+                <span class="status-msg" id="statusText">서버 연결 대기 중 (FastAPI 스트리밍)</span>
+                <span id="elapsedTime" class="elapsed-time" aria-hidden="true"></span>
+            </div>
+            <div class="chat-actions">
+                <label for="timeMinutesInput" class="time-label">time(m)</label>
+                <input type="number" id="timeMinutesInput" class="time-minutes-input" min="0.5" max="60" step="0.5" value="1" title="대화 제한 시간(분)">
+                <button type="button" id="chatSubmitBtn">협상 시작</button>
+                <button type="button" id="chatPauseBtn" class="btn btn-pause" disabled>일시 멈춤</button>
+                <span id="routerReason" class="router-reason"></span>
+            </div>
+        </div>
+        <div class="right-section" id="rightSection">
+            <div class="estimate-panel">
+                <div class="panel-title">📋 정리 및 견적서</div>
+                <div class="panel-body empty" id="estimatePanel">협상이 마무리되면 여기에 논의 정리와 최종 견적서가 표시됩니다.</div>
+            </div>
+        </div>
+    </div>
+
+    <form class="controls" id="negotiationForm">
+        <button type="submit" id="submitBtn">협상 시작</button>
+        <button type="button" id="pauseBtn" class="btn btn-pause" disabled>일시 멈춤</button>
+    </form>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        const form = document.getElementById('negotiationForm');
+        const chatWindow = document.getElementById('chat-window');
+        const statusText = document.getElementById('statusText');
+        const elapsedTimeEl = document.getElementById('elapsedTime');
+        const submitBtn = document.getElementById('submitBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const promptInput = document.getElementById('promptInput');
+        const fileInput = document.getElementById('fileInput');
+        const promptTech = document.getElementById('promptTech');
+        const promptBusiness = document.getElementById('promptBusiness');
+        const promptEconomy = document.getElementById('promptEconomy');
+        const resetPromptsBtn = document.getElementById('resetPromptsBtn');
+        const filePreview = document.getElementById('filePreview');
+        const chatSection = document.getElementById('chatSection');
+        const promptEditSection = document.getElementById('promptEditSection');
+        const rightSection = document.getElementById('rightSection');
+        const tabButtons = document.querySelectorAll('.tab-btn');
+        let previewUrl = null;
+
+        async function loadDefaultPrompts() {
+            if (!promptTech || !promptBusiness || !promptEconomy) return;
+            try {
+                const res = await fetch(API_BASE + '/api/prompts');
+                if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+                const data = await res.json();
+                promptTech.value = data.tech || '';
+                promptBusiness.value = data.business || '';
+                promptEconomy.value = data.economy || '';
+            } catch (e) {
+                console.warn('기본 프롬프트 불러오기 실패:', e);
+            }
+        }
+        resetPromptsBtn.addEventListener('click', loadDefaultPrompts);
+        loadDefaultPrompts();
+
+        const promptEditBtn = document.getElementById('promptEditBtn');
+        const inputNextBtn = document.getElementById('inputNextBtn');
+        const promptNextBtn = document.getElementById('promptNextBtn');
+        const chatSubmitBtn = document.getElementById('chatSubmitBtn');
+        const chatPauseBtn = document.getElementById('chatPauseBtn');
+        const routerReasonEl = document.getElementById('routerReason');
+
+        document.querySelectorAll('.prompt-edit-tab').forEach(btn => {
+            btn.addEventListener('click', function () {
+                const tab = this.getAttribute('data-tab');
+                document.querySelectorAll('.prompt-edit-tab').forEach(b => b.classList.toggle('active', b.getAttribute('data-tab') === tab));
+                document.querySelectorAll('.prompt-edit-content').forEach(c => c.classList.toggle('active', c.getAttribute('data-tab') === tab));
+            });
+        });
+
+        let abortController = null;
+        let isStreaming = false;
+        let isPaused = false;
+        let hasStarted = false;
+        let lastSide = 'right'; // 말풍선 좌우 번갈아 정렬용
+        let elapsedTimerInterval = null;
+        let elapsedStartTime = null;
+
+        function updateElapsedDisplay() {
+            if (!elapsedTimeEl || elapsedStartTime == null) return;
+            var sec = Math.floor((Date.now() - elapsedStartTime) / 1000);
+            var m = Math.floor(sec / 60);
+            var s = sec % 60;
+            elapsedTimeEl.textContent = m + 'm ' + s + 's';
+            elapsedTimeEl.removeAttribute('aria-hidden');
+        }
+        function startElapsedTimer() {
+            stopElapsedTimer();
+            elapsedStartTime = Date.now();
+            elapsedTimeEl.textContent = '0m 0s';
+            if (elapsedTimeEl) elapsedTimeEl.removeAttribute('aria-hidden');
+            elapsedTimerInterval = setInterval(updateElapsedDisplay, 1000);
+        }
+        function stopElapsedTimer() {
+            if (elapsedTimerInterval) {
+                clearInterval(elapsedTimerInterval);
+                elapsedTimerInterval = null;
+            }
+            if (elapsedStartTime != null) {
+                updateElapsedDisplay();
+                elapsedStartTime = null;
+            }
+        }
+
+        if (inputNextBtn) {
+            inputNextBtn.addEventListener('click', () => setActivePanel('prompt'));
+        }
+        if (promptNextBtn) {
+            promptNextBtn.addEventListener('click', () => setActivePanel('chat'));
+        }
+        if (chatSubmitBtn) {
+            chatSubmitBtn.addEventListener('click', () => submitBtn.click());
+        }
+        if (chatPauseBtn) {
+            chatPauseBtn.addEventListener('click', () => pauseBtn.click());
+        }
+
+        function syncChatControls() {
+            if (chatSubmitBtn) {
+                chatSubmitBtn.textContent = submitBtn.textContent;
+                chatSubmitBtn.disabled = submitBtn.disabled;
+            }
+            if (chatPauseBtn) {
+                chatPauseBtn.disabled = pauseBtn.disabled;
+            }
+        }
+
+        function setPromptEditorsEnabled(enabled) {
+            const disabled = !enabled;
+            promptTech.disabled = disabled;
+            promptBusiness.disabled = disabled;
+            promptEconomy.disabled = disabled;
+            resetPromptsBtn.disabled = disabled;
+            if (promptEditBtn) promptEditBtn.disabled = disabled;
+            syncChatControls();
+        }
+        setPromptEditorsEnabled(true);
+        function setActivePanel(panel) {
+            tabButtons.forEach(btn => {
+                const target = btn.getAttribute('data-panel');
+                btn.classList.toggle('active', target === panel);
+            });
+            const est = rightSection ? rightSection.querySelector('.estimate-panel') : null;
+
+            const inputAttachSection = document.getElementById('inputAttachSection');
+            if (inputAttachSection) inputAttachSection.style.display = 'none';
+            if (promptEditSection) promptEditSection.style.display = 'none';
+            if (chatSection) {
+                chatSection.style.display = 'none';
+                chatSection.style.flex = '1';
+            }
+            if (rightSection) {
+                rightSection.style.display = 'none';
+                rightSection.style.flex = '0 0 520px';
+                rightSection.style.width = '520px';
+            }
+            if (est) {
+                est.style.display = 'none';
+                est.style.flex = '1 1 0';
+                est.style.width = '100%';
+            }
+
+            if (panel === 'input') {
+                if (inputAttachSection) {
+                    inputAttachSection.style.display = 'flex';
+                    inputAttachSection.style.flex = '1 1 0';
+                    inputAttachSection.style.width = '100%';
+                }
+            } else if (panel === 'prompt') {
+                if (promptEditSection) {
+                    promptEditSection.style.display = 'flex';
+                    promptEditSection.style.flex = '1 1 0';
+                    promptEditSection.style.width = '100%';
+                }
+                // 프롬프트 편집 탭을 열 때 서버 기본값이 비어 있으면 불러오기
+                if (promptTech && promptBusiness && promptEconomy) {
+                    var needLoad = !promptTech.value.trim() && !promptBusiness.value.trim() && !promptEconomy.value.trim();
+                    if (needLoad) loadDefaultPrompts();
+                }
+            } else if (panel === 'chat') {
+                if (chatSection) chatSection.style.display = 'flex';
+            } else if (panel === 'estimate') {
+                if (rightSection && est) {
+                    rightSection.style.display = 'flex';
+                    rightSection.style.flex = '1 1 0';
+                    rightSection.style.width = '100%';
+                    est.style.display = 'flex';
+                    est.style.flex = '1 1 0';
+                    est.style.width = '100%';
+                }
+            }
+        }
+
+        tabButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const panel = btn.getAttribute('data-panel');
+                setActivePanel(panel);
+            });
+        });
+        // 기본 활성 탭: 1단계 입력·첨부
+        setActivePanel('input');
+
+        function updateFilePreview(file) {
+            if (!filePreview) return;
+            if (previewUrl) {
+                try { URL.revokeObjectURL(previewUrl); } catch (_) {}
+                previewUrl = null;
+            }
+            if (!file) {
+                filePreview.textContent = '첨부된 파일이 없거나, 아직 선택하지 않았습니다.';
+                return;
+            }
+            const type = (file.type || '').toLowerCase();
+            const name = (file.name || '').toLowerCase();
+            previewUrl = URL.createObjectURL(file);
+            if (type.startsWith('image/')) {
+                filePreview.innerHTML = '<img src="' + previewUrl + '" alt="첨부 이미지">';
+            } else if (type === 'application/pdf' || name.endsWith('.pdf')) {
+                // 브라우저 내장 PDF 뷰어를 이용한 간단한 미리보기 (컨테이너 크기에 맞춤)
+                filePreview.innerHTML = '<embed src="' + previewUrl + '" type="application/pdf" style="border:none;" />';
+            } else {
+                filePreview.textContent = '이 형식은 미리보기를 지원하지 않습니다: ' + (file.name || '');
+            }
+        }
+
+        fileInput.addEventListener('change', function () {
+            const f = fileInput.files && fileInput.files[0];
+            updateFilePreview(f || null);
+        });
+
+        function clearPlaceholder() {
+            const el = document.getElementById('chatPlaceholder');
+            if (el) el.remove();
+        }
+
+        function addSeparator() {
+            const div = document.createElement('div');
+            div.className = 'placeholder-msg';
+            div.style.textAlign = 'center';
+            div.style.padding = '8px 0';
+            div.style.color = '#999';
+            div.textContent = '——— 협상 이어가기 ———';
+            chatWindow.appendChild(div);
+        }
+
+        function addBubble(role) {
+            const labelMap = {
+                tech: '기술 전문가',
+                business: '사업 전문가',
+                economy: '경제 전문가',
+            };
+            const label = labelMap[role] || '사회자';
+            // 왼쪽/오른쪽 번갈아가며 정렬
+            lastSide = (lastSide === 'left') ? 'right' : 'left';
+            const sideClass = (lastSide === 'left') ? 'expert' : 'ceo';
+
+            const div = document.createElement('div');
+            div.className = 'msg ' + sideClass;
+            div.innerHTML = '<span class="role-label">' + label + '</span><div class="content"></div>';
+            chatWindow.appendChild(div);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+            return div.querySelector('.content');
+        }
+
+        function setPausedUI() {
+            isStreaming = false;
+            isPaused = true;
+            submitBtn.disabled = false;
+            submitBtn.textContent = '협상 이어가기';
+            pauseBtn.disabled = true;
+            statusText.textContent = '일시 멈춤됨. 파일·텍스트를 갱신한 뒤 "협상 이어가기"를 누르세요.';
+            stopElapsedTimer();
+            syncChatControls();
+        }
+
+        function setStreamingUI() {
+            submitBtn.textContent = '협상 시작';
+            submitBtn.disabled = true;
+            pauseBtn.disabled = false;
+            statusText.textContent = '실시간 스트리밍 중... (일시 멈춤 가능)';
+            startElapsedTimer();
+            syncChatControls();
+        }
+
+        pauseBtn.addEventListener('click', function () {
+            if (!isStreaming || !abortController) return;
+            abortController.abort();
+            setPausedUI();
+        });
+
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            let prompt = (promptInput.value || '').trim();
+            // 비워두면 서버 쪽 기본 안내 문구를 사용하도록 빈 문자열로 전송
+            setActivePanel('chat');
+            if (chatSection && chatSection.scrollIntoView) {
+                chatSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+            if (!hasStarted) {
+                hasStarted = true;
+                setPromptEditorsEnabled(false);
+            }
+
+            // 새 스트리밍을 시작할 때마다 라우터 reason 표시를 초기화
+            if (routerReasonEl) {
+                routerReasonEl.textContent = '';
+            }
+
+            if (!isPaused) {
+                chatWindow.innerHTML = '';
+                var ph = document.createElement('div');
+                ph.className = 'placeholder-msg';
+                ph.id = 'chatPlaceholder';
+                ph.textContent = '스트리밍 대기 중...';
+                chatWindow.appendChild(ph);
+                const estimatePanel = document.getElementById('estimatePanel');
+                if (estimatePanel) { estimatePanel.textContent = '협상이 마무리되면 여기에 논의 정리와 최종 견적서가 표시됩니다.'; estimatePanel.classList.add('empty'); }
+            } else {
+                clearPlaceholder();
+                addSeparator();
+                isPaused = false;
+            }
+
+            abortController = new AbortController();
+            isStreaming = true;
+            setStreamingUI();
+
+            const formData = new FormData();
+            const timeInput = document.getElementById('timeMinutesInput');
+            const timeMinutes = (timeInput && timeInput.value !== '') ? Math.max(0.5, parseFloat(timeInput.value) || 1) : 1;
+            formData.append('time_minutes', String(timeMinutes));
+            formData.append('prompt', prompt);
+            formData.append('prompt_tech', promptTech.value.trim());
+            formData.append('prompt_business', promptBusiness.value.trim());
+            formData.append('prompt_economy', promptEconomy.value.trim());
+            var file = fileInput.files && fileInput.files[0];
+            if (file) {
+                formData.append('image', file);
+            }
+
+            let currentContentEl = null;
+            let pendingRole = null;
+
+            try {
+                const res = await fetch(API_BASE + '/negotiate', {
+                    method: 'POST',
+                    body: formData,
+                    signal: abortController.signal
+                });
+                if (!res.ok) throw new Error(res.statusText || '요청 실패');
+                clearPlaceholder();
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                function trimTrailingGarbage(el) {
+                    if (!el || !el.textContent) return;
+                    var s = el.textContent.replace(/\s*\[DONE\]\s*$/i, '').trim();
+                    el.textContent = s;
+                }
+                function processOneEvent(payload) {
+                    if (payload === '[DONE]') {
+                        if (currentContentEl) trimTrailingGarbage(currentContentEl);
+                        return;
+                    }
+                    try {
+                        const obj = typeof payload === 'string' ? JSON.parse(payload) : payload;
+                        if (obj.router_reason !== undefined) {
+                            if (routerReasonEl) {
+                                const txt = (typeof obj.router_reason === 'string'
+                                    ? obj.router_reason
+                                    : String(obj.router_reason || '')).trim();
+                                routerReasonEl.textContent = txt;
+                            }
+                            return;
+                        }
+                        if (obj.estimate !== undefined) {
+                            if (currentContentEl) trimTrailingGarbage(currentContentEl);
+                            const panel = document.getElementById('estimatePanel');
+                            if (panel) {
+                                panel.classList.remove('empty');
+                                var md = (typeof obj.estimate === 'string' ? obj.estimate : String(obj.estimate || '')).trim();
+                                if (md) {
+                                    panel.innerHTML = renderEstimateMarkdown(md);
+                                    // 최종 견적이 도착하면 정리/견적서 탭으로 전환
+                                    setActivePanel('estimate');
+                                }
+                            }
+                            return;
+                        }
+                        if (obj.estimate_stream !== undefined) {
+                            const panel = document.getElementById('estimatePanel');
+                            if (panel) {
+                                panel.classList.remove('empty');
+                                var mdStream = (typeof obj.estimate_stream === 'string' ? obj.estimate_stream : String(obj.estimate_stream || '')).trim();
+                                if (mdStream) {
+                                    panel.innerHTML = renderEstimateMarkdown(mdStream);
+                                    // 스트리밍 중에도 정리/견적서 탭에서 마크다운이 갱신되도록 보이게
+                                    setActivePanel('estimate');
+                                }
+                            }
+                            return;
+                        }
+                        if (obj.estimate_status === 'running') {
+                            const panel = document.getElementById('estimatePanel');
+                            if (panel && panel.classList.contains('empty')) {
+                                panel.textContent = '정리 및 견적서를 생성 중입니다...';
+                                // 생성 시작 시 정리/견적서 탭으로 전환
+                                setActivePanel('estimate');
+                            }
+                            return;
+                        }
+                        if (obj.role !== undefined) {
+                            pendingRole = obj.role;
+                            return;
+                        }
+                        if (obj.t !== undefined) {
+                            if (obj.t === '[DONE]') {
+                                if (currentContentEl) trimTrailingGarbage(currentContentEl);
+                                return;
+                            }
+                            var text = (typeof obj.t === 'string') ? obj.t : (obj.t != null ? String(obj.t) : '');
+                            if (pendingRole || !currentContentEl) {
+                                clearPlaceholder();
+                            }
+                            if (pendingRole) {
+                                currentContentEl = addBubble(pendingRole);
+                                pendingRole = null;
+                            } else if (!currentContentEl) {
+                                currentContentEl = addBubble('tech');
+                            }
+                            if (currentContentEl && text) {
+                                currentContentEl.textContent += text;
+                                chatWindow.scrollTop = chatWindow.scrollHeight;
+                            }
+                        }
+                    } catch (_) {
+                        if (currentContentEl && typeof payload === 'string' && payload !== '[DONE]') {
+                            currentContentEl.textContent += payload + '\n';
+                            chatWindow.scrollTop = chatWindow.scrollHeight;
+                        }
+                    }
+                }
+                function escapeHtml(s) {
+                    if (!s) return '';
+                    var d = document.createElement('div');
+                    d.textContent = s;
+                    return d.innerHTML;
+                }
+                function simpleMarkdownToHtml(md) {
+                    if (!md) return '';
+                    let html = escapeHtml(md);
+                    html = html.replace(/```([\s\S]*?)```/g, function (_, code) {
+                        return '<pre><code>' + code + '</code></pre>';
+                    });
+                    html = html.replace(/^###\s+(.*)$/gm, '<h3>$1</h3>');
+                    html = html.replace(/^##\s+(.*)$/gm, '<h2>$1</h2>');
+                    html = html.replace(/^#\s+(.*)$/gm, '<h1>$1</h1>');
+                    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+                    html = html.replace(/^\-\s+(.*)$/gm, '<li>$1</li>');
+                    html = html.replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>');
+                    html = html.replace(/\n{2,}/g, '</p><p>');
+                    html = '<p>' + html + '</p>';
+                    return html;
+                }
+                function renderEstimateMarkdown(md) {
+                    if (!md) return '';
+                    if (typeof marked !== 'undefined') {
+                        try {
+                            var opts = { gfm: true, breaks: true };
+                            return (typeof marked.parse === 'function' ? marked.parse(md, opts) : marked(md, opts));
+                        } catch (e) {
+                            return simpleMarkdownToHtml(md);
+                        }
+                    }
+                    return simpleMarkdownToHtml(md);
+                }
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    buffer = buffer.replace(/\r\n/g, '\n');
+                    var parts = buffer.split('\n\n');
+                    buffer = parts.pop() || '';
+                    for (var i = 0; i < parts.length; i++) {
+                        var segment = parts[i].trim();
+                        if (segment.indexOf('data: ') !== 0) continue;
+                        var raw = segment.slice(6).trim();
+                        if (!raw) continue;
+                        try {
+                            processOneEvent(JSON.parse(raw));
+                        } catch (e) {
+                            processOneEvent(raw);
+                        }
+                    }
+                }
+                buffer = buffer.replace(/\r\n/g, '\n');
+                var parts = buffer.split('\n\n');
+                for (var i = 0; i < parts.length; i++) {
+                    var segment = parts[i].trim();
+                    if (segment.indexOf('data: ') !== 0) continue;
+                    var raw = segment.slice(6).trim();
+                    if (!raw) continue;
+                    try {
+                        processOneEvent(JSON.parse(raw));
+                    } catch (e) {
+                        processOneEvent(raw);
+                    }
+                }
+                isStreaming = false;
+                submitBtn.disabled = false;
+                submitBtn.textContent = '협상 시작';
+                pauseBtn.disabled = true;
+                statusText.textContent = '스트리밍 완료';
+                stopElapsedTimer();
+                syncChatControls();
+            } catch (err) {
+                if (err.name === 'AbortError') {
+                    setPausedUI();
+                    return;
+                }
+                clearPlaceholder();
+                const errDiv = document.createElement('div');
+                errDiv.className = 'msg expert';
+                errDiv.innerHTML = '<span class="role-label">오류</span><div class="content">' + err.message + '\n\nFastAPI가 ' + API_BASE + ' 에서 실행 중인지 확인하세요.</div>';
+                chatWindow.appendChild(errDiv);
+                isStreaming = false;
+                submitBtn.disabled = false;
+                submitBtn.textContent = '협상 시작';
+                pauseBtn.disabled = true;
+                statusText.textContent = '오류 발생';
+                stopElapsedTimer();
+                syncChatControls();
+            }
+        };
+    </script>
+</body>
+</html>
