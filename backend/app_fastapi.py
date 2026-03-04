@@ -1,5 +1,7 @@
 """FastAPI 진입점 (backend/config, backend/utils, backend/models 사용)."""
 import base64
+import os
+import tempfile
 from typing import Annotated, Optional
 
 from fastapi import FastAPI, File, Form, UploadFile
@@ -39,7 +41,7 @@ async def negotiate(
 
     # 이미지 / PDF 처리:
     # - 이미지: 1장을 base64로 인코딩해 전달
-    # - PDF: 텍스트를 추출해 prompt 뒤에 붙이고, 이미지는 보내지 않음
+    # - PDF: 페이지를 이미지로 변환해서 (1장 이상) base64 인코딩한 이미지로만 전달
     images_b64: list[str] = []
     if image and image.filename:
         raw_bytes = await image.read()
@@ -47,16 +49,24 @@ async def negotiate(
         filename = (image.filename or "").lower()
 
         if content_type == "application/pdf" or filename.endswith(".pdf"):
-            from backend.utils.utils import pdf_to_text
+            from backend.utils.utils import pdf_to_images
 
-            pdf_text = pdf_to_text(raw_bytes)
-            if pdf_text:
-                if prompt:
-                    prompt = f"{prompt}\n\n[첨부 PDF 내용]\n{pdf_text}"
-                else:
-                    prompt = f"[첨부 PDF 내용]\n{pdf_text}"
-            images_b64 = []
+            # PDF 업로드 바이트를 임시 파일로 저장한 뒤, 경로 기반 pdf2image(convert_from_path)로 처리
+            tmp_path = None
+            try:
+                with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+                    tmp.write(raw_bytes)
+                    tmp_path = tmp.name
+                # PDF: 파일 경로를 이용해 각 페이지를 이미지(JPEG) 목록(base64)으로 변환
+                images_b64 = pdf_to_images(tmp_path)
+            finally:
+                if tmp_path and os.path.exists(tmp_path):
+                    try:
+                        os.remove(tmp_path)
+                    except OSError:
+                        pass
         else:
+            # 단일 이미지 파일은 base64 한 장만 전달
             images_b64 = [base64.b64encode(raw_bytes).decode("utf-8")]
 
     # 에이전트별 프롬프트 (비어 있으면 서버 기본값)

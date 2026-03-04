@@ -23,9 +23,6 @@ async def router_node(state: AgentState, config: dict = None) -> dict:
     """
     q, prompts_cfg = get_run_context(config)
 
-    if q:
-        await q.put({"role": "router"})
-
     # 1. 이전 대화 전체 + 직전 노드 이름 준비
     conversation_history = conversation_to_text(state)
     previous_node = state.get("previous_node") or ""
@@ -44,7 +41,8 @@ async def router_node(state: AgentState, config: dict = None) -> dict:
     msgs = [SystemMessage(content=prompt_text)]
 
     # 3. LLM 호출 및 응답 수집
-    full_response = await stream_llm_and_collect(q, msgs)
+    #    - router는 JSON만 필요하므로, 채팅 말풍선에는 내용을 스트리밍하지 않는다(q=None).
+    full_response = await stream_llm_and_collect(None, msgs)
 
     # 4. JSON 파싱 시도
     next_node = ""
@@ -58,9 +56,22 @@ async def router_node(state: AgentState, config: dict = None) -> dict:
         # JSON 파싱 실패 시, 전체 응답을 reason 으로 간주하고 다음 노드는 공백으로 둔다.
         reason = full_response.strip()
 
-    # 5. SSE로 router reason 전송
-    if q and reason:
-        await q.put({"router_reason": reason, "next_node": next_node})
+    # 5. SSE로 router reason 전송 (UI에는 사람 읽기 좋은 형태로만 노출, 사회자 말풍선은 사용하지 않음)
+    if q and (next_node or reason):
+        # next_node를 사람이 이해하기 쉬운 라벨로 치환
+        role_label_map = {
+            "tech": "기술 전문가",
+            "business": "사업 전문가",
+            "economy": "경제 전문가",
+            "estimate": "정리 및 견적서",
+        }
+        display_next = role_label_map.get(next_node, (next_node or "").strip() or "?")
+        display_text = f"다음 발언자: {display_next}"
+        if reason:
+            display_text += f"\n이유: {reason}"
+
+        # 우측 패널(사회자 reason 영역)에만 표시
+        await q.put({"router_reason": display_text, "next_node": next_node})
 
     # 6. 선택된 노드에 대해서만 카운트 증가 로직
     tech_count = state.get("called_tech_node") or 0
@@ -75,8 +86,8 @@ async def router_node(state: AgentState, config: dict = None) -> dict:
         eco_count += 1
 
     # 7. 상태 업데이트
+    #    - router의 JSON 응답은 messages에 넣지 않아 전문가에게 그대로 노출되지 않도록 한다.
     return {
-        "messages": [AIMessage(content=full_response)],
         "previous_node": "router",
         "router_next_node": next_node,
         "called_tech_node": tech_count,
@@ -88,15 +99,16 @@ async def router_node(state: AgentState, config: dict = None) -> dict:
 def after_router(state: AgentState, config) -> str:
     """
     router 이후 다음 노드를 결정.
-    - 시간 제한을 넘기면 무조건 estimate.
+    - 시간 제한을 넘기면 무조건 stop(그래프 종료).
     - 아니면 router_node 가 state["router_next_node"] 에 기록해 둔 값을 기반으로
-      tech / business / economy / estimate 중 하나를 선택.
+      tech / business / economy 중 하나를 선택.
     """
     if time_limit_reached(state, config):
-        return "estimate"
+        # 그래프를 종료하고, 이후 외부 Estimator 에이전트가 정리를 담당
+        return "stop"
 
     next_node = (state.get("router_next_node") or "").strip().lower()
-    if next_node in ("tech", "business", "economy", "estimate"):
+    if next_node in ("tech", "business", "economy"):
         return next_node
 
     # fallback: 알 수 없으면 tech 로 시작

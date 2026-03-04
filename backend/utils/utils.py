@@ -3,6 +3,7 @@ import contextvars
 import time
 import asyncio
 from typing import Optional, List
+from pdf2image import convert_from_path
 from io import BytesIO
 import base64
 
@@ -11,7 +12,7 @@ from backend.models.llm import llm
 from backend.models import AgentState
 
 try:
-    # PDF를 페이지별 이미지로 변환하기 위한 선택적 의존성 (현재는 사용 안 함)
+    # PDF를 페이지별 이미지로 변환하기 위한 선택적 의존성
     from pdf2image import convert_from_bytes  # type: ignore
 except Exception:  # pragma: no cover - 선택적 의존성
     convert_from_bytes = None
@@ -116,25 +117,18 @@ async def stream_llm_and_collect(q, msgs) -> str:
     return full_response
 
 
-def pdf_to_page_images_base64(pdf_bytes: bytes, dpi: int = 150) -> List[str]:
-    """
-    PDF 바이트를 페이지별 JPEG 이미지로 변환하고, 각 페이지를 base64 문자열로 반환.
-    (현재는 사용하지 않지만, 필요 시 확장용으로 남겨둠.)
-    """
-
-    if not convert_from_bytes:
-        return []
-
-    try:
-        images = convert_from_bytes(pdf_bytes, dpi=dpi)
-    except Exception:
-        return []
-    result: List[str] = []
+def pdf_to_images(pdf_path, dpi=200):
+    # 1. PDF 전체 페이지를 이미지 리스트로 변환
+    images = convert_from_path(pdf_path, dpi=dpi)
+    base64_pages = []
+    
     for img in images:
-        buf = BytesIO()
-        img.save(buf, format="JPEG")
-        result.append(base64.b64encode(buf.getvalue()).decode("utf-8"))
-    return result
+        buffered = BytesIO()
+        img.save(buffered, format="JPEG")
+        img_str = base64.b64encode(buffered.getvalue()).decode('utf-8')
+        base64_pages.append(img_str)
+        
+    return base64_pages
 
 
 def pdf_to_text(pdf_bytes: bytes, max_pages: int = 10) -> str:

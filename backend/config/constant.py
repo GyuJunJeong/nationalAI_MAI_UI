@@ -7,8 +7,8 @@ from backend.prompts.economy import ECONOMY_PROMPT
 # -----------------------------------------------------------------------------
 # 경로·실행 설정
 # -----------------------------------------------------------------------------
-LLM_MODEL = "maternion/mai-ui:8b"
-LLM_TEMPERATURE = 0.3
+LLM_MODEL = "maternion/mai-ui:8b" # ahmadwaqar/mai-ui:8b
+LLM_TEMPERATURE = 0.2
 
 # 협상·스트리밍
 DEFAULT_TIME_LIMIT_MINUTES = 1.0   # 협상 대화 기본 제한 시간(분)
@@ -23,4 +23,3 @@ DEFAULT_PROMPTS = {
     "business": BUSINESS_PROMPT,
     "economy": ECONOMY_PROMPT,
 }
-

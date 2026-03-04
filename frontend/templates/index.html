@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NationalAI 견적 에이전트</title>
+    <title>NationalAI 검증 에이전트</title>
     <style>
         *, *::before, *::after {
             box-sizing: border-box;
@@ -523,7 +523,7 @@
 </head>
 <body>
 
-    <h2>NationalAI 견적 에이전트</h2>
+    <h2>NationalAI 검증 에이전트</h2>
 
     <div class="panel-tabs">
         <button type="button" class="tab-btn" data-panel="input" id="inputAttachTab">1. 📝 입력·첨부</button>
@@ -538,7 +538,7 @@
                 <div class="panel-title">1단계. 📝 요청 입력</div>
                 <div class="input-attach-row">
                     <label for="promptInput" class="input-label">대화 요구사항 (선택)</label>
-                    <input form="negotiationForm" type="text" id="promptInput" value="소프트웨어 프로덕션 견적을 내줘." placeholder="비워두면 기본 안내 문구로 요청합니다." class="input-attach-field">
+                    <input form="negotiationForm" type="text" id="promptInput" value="첨부한 영상에 부족한 부분을 가이드해줘." placeholder="비워두면 기본 안내 문구로 요청합니다." class="input-attach-field">
                 </div>
                 <div class="input-attach-row input-attach-file-row">
                     <label for="fileInput" class="input-label">파일 첨부</label>
@@ -630,6 +630,7 @@
         const rightSection = document.getElementById('rightSection');
         const tabButtons = document.querySelectorAll('.tab-btn');
         let previewUrl = null;
+        let autoScrollEnabled = true;
 
         async function loadDefaultPrompts() {
             if (!promptTech || !promptBusiness || !promptEconomy) return;
@@ -822,6 +823,14 @@
             updateFilePreview(f || null);
         });
 
+        if (chatWindow) {
+            chatWindow.addEventListener('scroll', function () {
+                const threshold = 40; // px
+                const atBottom = chatWindow.scrollTop + chatWindow.clientHeight >= chatWindow.scrollHeight - threshold;
+                autoScrollEnabled = atBottom;
+            });
+        }
+
         function clearPlaceholder() {
             const el = document.getElementById('chatPlaceholder');
             if (el) el.remove();
@@ -835,6 +844,20 @@
             div.style.color = '#999';
             div.textContent = '——— 협상 이어가기 ———';
             chatWindow.appendChild(div);
+        }
+
+        function addPageInfo(current, total) {
+            if (!chatWindow) return;
+            const div = document.createElement('div');
+            div.className = 'placeholder-msg';
+            div.style.textAlign = 'center';
+            div.style.padding = '4px 0';
+            div.style.color = '#666';
+            div.textContent = '현재 입력 페이지: ' + current + ' / ' + total;
+            chatWindow.appendChild(div);
+            if (autoScrollEnabled) {
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+            }
         }
 
         function addBubble(role) {
@@ -852,7 +875,9 @@
             div.className = 'msg ' + sideClass;
             div.innerHTML = '<span class="role-label">' + label + '</span><div class="content"></div>';
             chatWindow.appendChild(div);
-            chatWindow.scrollTop = chatWindow.scrollHeight;
+            if (autoScrollEnabled) {
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+            }
             return div.querySelector('.content');
         }
 
@@ -892,7 +917,7 @@
             }
             if (!hasStarted) {
                 hasStarted = true;
-                setPromptEditorsEnabled(false);
+                // 프롬프트 편집은 협상 중에도 계속 가능하도록 비활성화하지 않는다.
             }
 
             // 새 스트리밍을 시작할 때마다 라우터 reason 표시를 초기화
@@ -959,6 +984,16 @@
                     }
                     try {
                         const obj = typeof payload === 'string' ? JSON.parse(payload) : payload;
+                        if (obj.page_info !== undefined) {
+                            const info = obj.page_info || {};
+                            const cur = Number(info.current || info.page || 1);
+                            const tot = Number(info.total || info.total_pages || 1);
+                            // 페이지가 바뀔 때마다 대화 시간도 해당 페이지 기준으로 다시 측정
+                            stopElapsedTimer();
+                            startElapsedTimer();
+                            addPageInfo(cur, tot);
+                            return;
+                        }
                         if (obj.router_reason !== undefined) {
                             if (routerReasonEl) {
                                 const txt = (typeof obj.router_reason === 'string'
@@ -1025,13 +1060,17 @@
                             }
                             if (currentContentEl && text) {
                                 currentContentEl.textContent += text;
-                                chatWindow.scrollTop = chatWindow.scrollHeight;
+                                if (autoScrollEnabled) {
+                                    chatWindow.scrollTop = chatWindow.scrollHeight;
+                                }
                             }
                         }
                     } catch (_) {
                         if (currentContentEl && typeof payload === 'string' && payload !== '[DONE]') {
                             currentContentEl.textContent += payload + '\n';
-                            chatWindow.scrollTop = chatWindow.scrollHeight;
+                            if (autoScrollEnabled) {
+                                chatWindow.scrollTop = chatWindow.scrollHeight;
+                            }
                         }
                     }
                 }
